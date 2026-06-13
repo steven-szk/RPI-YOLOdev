@@ -54,7 +54,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(f"Content-Length: {len(jpeg)}\r\n\r\n".encode())
                     self.wfile.write(jpeg)
                     self.wfile.write(b"\r\n")
-                    time.sleep(1)            # ~1 FPS preview
+                    time.sleep(0.2)            # preview frame
             except Exception:
                 pass                         # browser tab closed
         else:
