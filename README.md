@@ -1,10 +1,10 @@
 # RPI-YOLOdev
 Development YOLO for Unibots proj
 
-# New venv
-python -m venv .venv
+# New venv with picamera2 system packages
+python3 -m venv --system-site-packages .venv
 
-# activate venv
+# activate venv 
 source .venv/bin/activate
 
 pip install -r requirements.txt
