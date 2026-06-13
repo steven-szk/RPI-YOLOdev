@@ -67,6 +67,9 @@ atexit.register(close_camera)
 
 if __name__ == "__main__":
     # Quick self-test: grab one frame and save it.
-    with open("~data/test.jpg", "wb") as f:
+    import os
+    os.makedirs("data", exist_ok=True)
+    path = "data/test.jpg"
+    with open(path, "wb") as f:
         f.write(capture_jpeg())
-    print("saved test.jpg")
+    print(f"saved {path}")
