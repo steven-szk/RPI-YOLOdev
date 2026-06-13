@@ -1,0 +1,7 @@
+# On the Raspberry Pi (picamera2 comes preinstalled on Raspberry Pi OS;
+# if not: sudo apt install -y python3-picamera2)
+opencv-python
+requests
+
+# On the PC that collects photos:
+flask
