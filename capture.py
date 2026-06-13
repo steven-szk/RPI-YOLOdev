@@ -66,12 +66,12 @@ atexit.register(close_camera)
 
 
 if __name__ == "__main__":
-    # Quick self-test: grab one frame and save it.
+    # Quick self-test: grab two frames 2s apart, overwriting the same file.
     import os
     os.makedirs("data", exist_ok=True)
     path = "data/test.jpg"
-    with open(path, "wb") as f:
-        f.write(capture_jpeg())
+    for i in range(2):
+        with open(path, "wb") as f:
+            f.write(capture_jpeg())
+        print(f"saved {path}")
         time.sleep(1)
-        f.write(capture_jpeg())
-    print(f"saved {path}")
