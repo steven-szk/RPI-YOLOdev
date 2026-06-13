@@ -12,3 +12,6 @@ pip install -r requirements.txt
 # deactivate venv
 deactivate
 
+# IP server:
+http://192.168.0.40:1234/
+
