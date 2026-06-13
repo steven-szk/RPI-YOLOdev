@@ -72,4 +72,6 @@ if __name__ == "__main__":
     path = "data/test.jpg"
     with open(path, "wb") as f:
         f.write(capture_jpeg())
+        time.sleep(1)
+        f.write(capture_jpeg())
     print(f"saved {path}")
