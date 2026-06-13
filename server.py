@@ -1,73 +1,88 @@
-"""LAN image-collection server.
+"""Pi Camera HTTP server (Python stdlib, no Flask).
 
-Run this on the machine that gathers photos (your PC / training box).
-The Raspberry Pi (or any client) posts images to it with uploader.py.
+Runs ON THE PI. The PC runs NOTHING - it just opens a URL in a browser or
+grabs it with curl:
 
-Images are saved under ./dataset/images/ (and grouped into per-label
-subfolders when a label is provided), ready to be picked up by a YOLO
-training pipeline.
+    http://<pi-ip>:1234/            -> info page (live preview + snapshot)
+    http://<pi-ip>:1234/photo.jpg   -> capture ONE fresh still, returns JPEG
+    http://<pi-ip>:1234/stream.mjpg -> live MJPEG preview (~1 FPS)
 
-Run:
-    pip install flask
-    python server.py            # listens on 0.0.0.0:8000 for the whole LAN
+Save a photo to the PC with no Pi-side interaction:
+    curl http://<pi-ip>:1234/photo.jpg -o photo.jpg
 
-Then point clients at  http://<this-machine-ip>:8000
+Run on the Raspberry Pi:
+    python server.py
 """
 
-from __future__ import annotations
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import os
-from datetime import datetime
-from pathlib import Path
+from capture import get_camera, capture_jpeg, close_camera
 
-from flask import Flask, request, jsonify
-from werkzeug.utils import secure_filename
+PORT = 1234
 
-
-SAVE_ROOT = Path(os.environ.get("DATASET_DIR", "dataset/images")).resolve()
-ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".bmp"}
-MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB per upload
-
-app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
-
-
-@app.route("/health", methods=["GET"])
-def health():
-    return jsonify(status="ok", save_root=str(SAVE_ROOT))
+INFO_PAGE = b"""<!DOCTYPE html>
+<html><head><title>Pi Camera</title></head>
+<body style="text-align:center;background:#1e1e1e;color:#fff;font-family:sans-serif;">
+  <h1>Pi Camera</h1>
+  <p><a href="/photo.jpg" style="color:#6cf;" download>Download a fresh snapshot</a></p>
+  <h2>Live preview</h2>
+  <img src="/stream.mjpg" style="max-width:90%;border:2px solid #555;border-radius:8px;">
+</body></html>
+"""
 
 
-@app.route("/upload", methods=["POST"])
-def upload():
-    if "image" not in request.files:
-        return jsonify(error="no 'image' field in form-data"), 400
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/":
+            self._send(200, "text/html", INFO_PAGE)
 
-    file = request.files["image"]
-    if not file.filename:
-        return jsonify(error="empty filename"), 400
+        elif self.path.startswith("/photo.jpg"):
+            # One fresh still -> JPEG. Browser/curl saves it; PC runs nothing.
+            self._send(200, "image/jpeg", capture_jpeg())
 
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_EXT:
-        return jsonify(error=f"unsupported extension {ext!r}"), 400
+        elif self.path.startswith("/stream.mjpg"):
+            self.send_response(200)
+            self.send_header("Content-Type",
+                             "multipart/x-mixed-replace; boundary=frame")
+            self.end_headers()
+            try:
+                while True:
+                    jpeg = capture_jpeg()
+                    self.wfile.write(b"--frame\r\n")
+                    self.wfile.write(b"Content-Type: image/jpeg\r\n")
+                    self.wfile.write(f"Content-Length: {len(jpeg)}\r\n\r\n".encode())
+                    self.wfile.write(jpeg)
+                    self.wfile.write(b"\r\n")
+                    time.sleep(1)            # ~1 FPS preview
+            except Exception:
+                pass                         # browser tab closed
+        else:
+            self.send_error(404)
 
-    # Optional label -> store in a per-class subfolder.
-    label = request.form.get("label", "").strip()
-    target_dir = SAVE_ROOT / secure_filename(label) if label else SAVE_ROOT
-    target_dir.mkdir(parents=True, exist_ok=True)
+    def _send(self, code, ctype, body):
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
-    # Timestamped, collision-free name. Keep the original stem for traceability.
-    stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    stem = secure_filename(Path(file.filename).stem) or "img"
-    out_path = target_dir / f"{stem}_{stamp}{ext}"
-    file.save(out_path)
+    def log_message(self, *args):
+        pass                                 # quiet logging
 
-    rel = out_path.relative_to(SAVE_ROOT)
-    print(f"[{datetime.now():%H:%M:%S}] saved {rel}  (label={label or '-'})")
-    return jsonify(status="saved", path=str(rel), label=label or None)
+
+def main():
+    get_camera()                             # warm up before serving
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    print(f"Serving on http://<pi-ip>:{PORT}/  (photo: /photo.jpg)")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+    finally:
+        server.server_close()
+        close_camera()
 
 
 if __name__ == "__main__":
-    SAVE_ROOT.mkdir(parents=True, exist_ok=True)
-    print(f"Saving uploads under: {SAVE_ROOT}")
-    # 0.0.0.0 so other devices on the LAN can reach it.
-    app.run(host="0.0.0.0", port=8000, threaded=True)
+    main()

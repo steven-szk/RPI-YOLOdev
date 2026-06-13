@@ -1,10 +1,7 @@
-"""Take a photo with the Pi Camera, save it, and upload it over the LAN.
+"""Reusable Pi Camera capture API.
 
-Run on the Raspberry Pi:
-    python capture.py
-
-Other scripts (YOLO train/run) can reuse the camera. The camera is started
-once on first use and kept open, so calling take_photo() in a loop is fast:
+The camera is started once on first use and kept open, so calling take_photo()
+in a loop is fast. Import this from your YOLO train/run scripts:
 
     from capture import take_photo, close_camera
     try:
@@ -13,18 +10,19 @@ once on first use and kept open, so calling take_photo() in a loop is fast:
             ...
     finally:
         close_camera()
+
+To serve photos over the LAN, run server.py (which uses this module).
 """
 
 import atexit
+import io
+import threading
 import time
 
-import requests
 from picamera2 import Picamera2
 
-PHOTO = "photo.jpg"
-SERVER = "http://192.168.0.33:8000/upload"   # MY PC's IP
-
-_cam = None   # Camera OBJECT to be initialised once
+_cam = None                      # Camera object, initialised once
+_lock = threading.Lock()         # one capture at a time across threads
 
 
 def get_camera(width=1920, height=1080):
@@ -32,17 +30,27 @@ def get_camera(width=1920, height=1080):
     global _cam
     if _cam is None:
         cam = Picamera2()
-        cam.configure(cam.create_still_configuration(main={"size": (width, height)}))
+        # BGR888 -> capture_array() returns BGR directly (what YOLO/cv2 want)
+        cam.configure(cam.create_preview_configuration(
+            main={"size": (width, height), "format": "BGR888"}))
         cam.start()
-        time.sleep(1)             # let exposure settle (first start only)
+        time.sleep(1)            # let exposure settle (first start only)
         _cam = cam
     return _cam
 
 
 def take_photo():
     """Capture a single BGR frame from the Pi Camera (numpy array, for YOLO)."""
-    rgb = get_camera().capture_array()
-    return rgb[:, :, ::-1]        # RGB -> BGR (what YOLO/OpenCV expect)
+    with _lock:
+        return get_camera().capture_array()
+
+
+def capture_jpeg():
+    """Capture a single frame encoded as JPEG bytes."""
+    stream = io.BytesIO()
+    with _lock:
+        get_camera().capture_file(stream, format="jpeg")
+    return stream.getvalue()
 
 
 def close_camera():
@@ -54,16 +62,11 @@ def close_camera():
         _cam = None
 
 
-atexit.register(close_camera)     # cleanup even if caller forgets with autoexit
-
-
-def main():
-    get_camera().capture_file(PHOTO)    # picamera2 saves JPEG directly
-    print(f"saved {PHOTO}")
-    with open(PHOTO, "rb") as f:
-        r = requests.post(SERVER, files={"image": (PHOTO, f, "image/jpeg")}, timeout=10)
-    print(f"uploaded -> {r.json()}")
+atexit.register(close_camera)
 
 
 if __name__ == "__main__":
-    main()
+    # Quick self-test: grab one frame and save it.
+    with open("test.jpg", "wb") as f:
+        f.write(capture_jpeg())
+    print("saved test.jpg")
