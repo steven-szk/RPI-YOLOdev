@@ -25,8 +25,13 @@ _cam = None                      # Camera object, initialised once
 _lock = threading.Lock()         # one capture at a time across threads
 
 
-def get_camera(width=1920, height=1080):
-    """Return the shared Pi Camera, starting it on first call."""
+def get_camera(width=1920, height=1080, exposure_us=4000, gain=4.0):
+    """Return the shared Pi Camera, starting it on first call.
+
+    Defaults to a fast shutter (4 ms) to freeze motion while the robot moves.
+    Shorter exposure = less blur but darker, so gain is raised to compensate.
+    Pass exposure_us=None to use auto-exposure instead.
+    """
     global _cam
     if _cam is None:
         cam = Picamera2()
@@ -34,7 +39,12 @@ def get_camera(width=1920, height=1080):
         cam.configure(cam.create_preview_configuration(
             main={"size": (width, height), "format": "BGR888"}))
         cam.start()
-        time.sleep(1)            # let exposure settle (first start only)
+        if exposure_us is not None:
+            # Fix the shutter manually so it can't drift slow and blur.
+            cam.set_controls({"AeEnable": False,
+                              "ExposureTime": exposure_us,
+                              "AnalogueGain": gain})
+        time.sleep(1)            # let settings/white-balance settle (first start)
         _cam = cam
     return _cam
 
