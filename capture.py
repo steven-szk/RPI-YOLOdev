@@ -18,7 +18,6 @@ once on first use and kept open, so calling take_photo() in a loop is fast:
 import atexit
 import time
 
-import cv2
 import requests
 from picamera2 import Picamera2
 
@@ -39,12 +38,11 @@ def get_camera(width=1920, height=1080):
         _cam = cam
     return _cam
 
-#_cam=get_camera()
 
 def take_photo():
-    """Capture a single BGR frame from the Pi Camera (numpy array)."""
+    """Capture a single BGR frame from the Pi Camera (numpy array, for YOLO)."""
     rgb = get_camera().capture_array()
-    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    return rgb[:, :, ::-1]        # RGB -> BGR (what YOLO/OpenCV expect)
 
 
 def close_camera():
@@ -56,12 +54,11 @@ def close_camera():
         _cam = None
 
 
-atexit.register(close_camera)     # cleanup even if caller forgets
+atexit.register(close_camera)     # cleanup even if caller forgets with autoexit
 
 
 def main():
-    frame = take_photo()
-    cv2.imwrite(PHOTO, frame)
+    get_camera().capture_file(PHOTO)    # picamera2 saves JPEG directly
     print(f"saved {PHOTO}")
     with open(PHOTO, "rb") as f:
         r = requests.post(SERVER, files={"image": (PHOTO, f, "image/jpeg")}, timeout=10)
