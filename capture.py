@@ -25,7 +25,7 @@ _cam = None                      # Camera object, initialised once
 _lock = threading.Lock()         # one capture at a time across threads
 
 
-def get_camera(width=1920, height=1080, exposure_us=6500, gain=8.0):
+def get_camera(width=1920, height=1080, exposure_us=6000, gain=8.0):
     """Return the shared Pi Camera, starting it on first call.
 
     Defaults to a fast shutter (4 ms) to freeze motion while the robot moves.
