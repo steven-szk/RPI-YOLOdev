@@ -32,13 +32,15 @@ INFO_PAGE = b"""<!DOCTYPE html>
 
 
 def annotated_jpeg():
-    """Capture a frame, run detection, draw results, return JPEG bytes."""
-    dets, results = detect(model, take_photo())
-    frame = results.plot()                       # boxes + class + conf, drawn for us
-    for d in dets:                               # overlay our angle/distance too
-        x, y = int(d["x"]), int(d["y"])
+    """Capture a frame, run detection, draw the FILTERED dets, return JPEG bytes."""
+    frame = take_photo()
+    dets, _ = detect(model, frame)               # dets already per-class filtered
+    for d in dets:                               # draw only what detect() kept OR, use frame = result.plot() and use take_photo() for the input of model
+        x1, y1, x2, y2 = (int(v) for v in d["box"])
         dist = f"{d['distance']:.0f}cm" if d["distance"] is not None else "edge"
-        cv2.putText(frame, f"{dist} {d['angle']:+.0f}deg", (x + 8, y),
+        label = f"{d['type']} {d['confidence']:.2f} {dist} {d['angle']:+.0f}deg"
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(frame, label, (x1, y1 - 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
     ok, buf = cv2.imencode(".jpg", frame) #converts a BGR numpy array into jpeg
     return buf.tobytes()

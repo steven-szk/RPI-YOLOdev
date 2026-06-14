@@ -38,9 +38,7 @@ def system_stats():
 PT_PATH = "custom_model_5.pt"
 NCNN_PATH = "custom_model_5_ncnn_model"
 
-# Per-class confidence thresholds. Pingpong is easy -> demand high confidence
-# (fewer false positives). The bearing is hard/flickery -> accept lower so its
-# weak detections survive. Classes not listed fall back to CONF.
+# different confidence interval
 CONF_BY_CLASS = {
     "ping pong ball": 0.60,
     "steel ball": 0.25,
@@ -49,9 +47,7 @@ CONF = min(CONF_BY_CLASS.values())   # run YOLO at the lowest, then filter per c
 IMGSZ = 640         # inference size; smaller = faster, less accurate
 FOV_DEG = 120.0     # lens horizontal field of view (capture res lives in capture.py)
 
-# Real-world diameter (cm) of each class, used for the rough distance
-# estimate. Fill in with YOUR model's class names exactly. Any class not
-# listed here gets distance=None.
+# Real-world diameter (cm) of each class, used for the rough distance estimate
 DIAMETERS_CM = {
     "ping pong ball": 4.0,
     "steel ball": 2.0,
@@ -120,6 +116,7 @@ def detect(model, frame, conf=CONF, imgsz=IMGSZ):
             "confidence": confidence,
             "x": cx,
             "y": cy,
+            "box": (x1, y1, x2, y2),   # corners, for drawing the filtered boxes
             "angle": angle,
             "distance": distance,
         })
