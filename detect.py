@@ -23,9 +23,25 @@ import argparse
 import os
 import time
 
+import psutil
 from ultralytics import YOLO
 
 from capture import get_camera, take_photo, close_camera
+
+_TEMP_FILE = "/sys/class/thermal/thermal_zone0/temp"
+
+
+def system_stats():
+    """Return a short 'CPU/RAM/temp' string for the Pi."""
+    cpu = psutil.cpu_percent()           # % since last call
+    ram = psutil.virtual_memory().percent
+    try:
+        with open(_TEMP_FILE) as f:      # millidegrees C
+            temp = int(f.read()) / 1000
+        temp_str = f"{temp:.1f}C"
+    except OSError:
+        temp_str = "n/a"                 # not a Pi / file missing
+    return f"CPU {cpu:4.0f}% | RAM {ram:4.0f}% | temp {temp_str}"
 
 MODEL_PATH = "custom_model_5.pt"
 CONF = 0.5            # min confidence to report
@@ -95,7 +111,8 @@ def main():
         while True:
             t0 = time.time()
             run_once()
-            print(f"  [{1 / (time.time() - t0):.1f} FPS]")
+            fps = 1 / (time.time() - t0)
+            print(f"  [{fps:4.1f} FPS | {system_stats()}]")
     except KeyboardInterrupt:
         print("\nStopped.")
     finally:

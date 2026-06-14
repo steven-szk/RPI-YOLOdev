@@ -1,5 +1,6 @@
 ultralytics        # pip install ultralytics opencv-python-headless
 opencv-python-headless
+psutil             # CPU / RAM stats in detect.py
 
 # picamera2         # sudo apt install -y python3-picamera2
 
