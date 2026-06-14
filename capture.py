@@ -1,9 +1,9 @@
 """Reusable Pi Camera capture API.
 
-The camera is started once on first use and kept open, so calling take_photo()
-in a loop is fast. Import this from YOLO train/run scripts:
+The camera starts automatically when this module is imported and is kept
+open, so take_photo() / capture_jpeg() are ready immediately:
 
-    from capture import take_photo, close_camera
+    from capture import take_photo, close_camera   # camera starts here
     try:
         while True:
             frame = take_photo()      # BGR numpy array, ready for YOLO
@@ -21,12 +21,16 @@ import time
 
 from picamera2 import Picamera2 #type: ignore
 
+# Camera config (edit here, since the camera is set up at import time).
+WIDTH, HEIGHT = 1920, 1080       # capture resolution
+EXPOSURE_US = 7000               # fast shutter to freeze motion; None = auto
+GAIN = 8.0                       # raise to compensate for the short exposure
+
 _cam = None                      # Camera object, initialised once
 _lock = threading.Lock()         # one capture at a time across threads
 
 
-def get_camera(width=1920, height=1080, exposure_us=7000, gain=8.0):
-    
+def get_camera(width=WIDTH, height=HEIGHT, exposure_us=EXPOSURE_US, gain=GAIN):
     """Return the shared Pi Camera, starting it on first call.
 
     Defaults to a fast shutter to freeze motion while the robot moves.
@@ -74,6 +78,9 @@ def close_camera():
 
 
 atexit.register(close_camera)
+
+# start the camera as soon as this module is imported, or it could be auto started with first picture taken, but this is better
+get_camera()          
 
 
 if __name__ == "__main__":
