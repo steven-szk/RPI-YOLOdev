@@ -1,14 +1,8 @@
 """Pi Camera HTTP server (Python stdlib, no Flask).
 
-Runs ON THE PI. The PC runs NOTHING - it just opens a URL in a browser or
-grabs it with curl:
-
+PC Web Links:
     http://<pi-ip>:1234/            -> info page (live preview + snapshot)
-    http://<pi-ip>:1234/photo.jpg   -> capture ONE fresh still, returns JPEG
     http://<pi-ip>:1234/stream.mjpg -> live MJPEG preview (~1 FPS)
-
-Save a photo to the PC with no Pi-side interaction:
-    curl http://<pi-ip>:1234/photo.jpg -o photo.jpg
 
 Run on the Raspberry Pi:
     python server.py
@@ -67,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    get_camera(640,480)                             # warm up before serving
+    get_camera()                             # warm up before serving
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Serving on http://<pi-ip>:{PORT}/  (photo: /photo.jpg)")
     try:

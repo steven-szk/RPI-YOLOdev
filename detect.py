@@ -29,7 +29,10 @@ from capture import get_camera, take_photo, close_camera
 
 MODEL_PATH = "custom_model_5.pt"
 CONF = 0.5            # min confidence to report
-IMGSZ = 320          # inference size; smaller = faster, less accurate
+IMGSZ = 320          
+    # inference size; smaller = faster, less accurate
+    # due to the 4*3, the actual usable image res is 320×256
+    
 CAP_W, CAP_H = 640, 480   # capture resolution; small = faster pipeline
 
 
