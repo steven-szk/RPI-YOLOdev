@@ -1,8 +1,6 @@
-# Raspberry Pi only. Everything else used here is in the Python stdlib
-# (http.server, io, threading), and the PC needs nothing installed.
-#
-# picamera2 is NOT pip-installable - it ships with Raspberry Pi OS, or:
-#   sudo apt install -y python3-picamera2
-#
+ultralytics        # pip install ultralytics opencv-python-headless
+
+# picamera2         # sudo apt install -y python3-picamera2
+
 # If using a venv, create it so it can see the system picamera2:
 #   python3 -m venv --system-site-packages .venv
