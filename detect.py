@@ -43,17 +43,25 @@ def system_stats():
         temp_str = "n/a"                 # not a Pi / file missing
     return f"CPU {cpu:4.0f}% | RAM {ram:4.0f}% | temp {temp_str}"
 
-MODEL_PATH = "custom_model_5.pt"
+PT_PATH = "custom_model_5.pt"
+NCNN_PATH = "custom_model_5_ncnn_model"   # folder made by `yolo export ... format=ncnn`
 CONF = 0.5            # min confidence to report
-IMGSZ = 320          
-    # inference size; smaller = faster, less accurate
-    # due to the 4*3, the actual usable image res is 320×256
-    
+IMGSZ = 640
+    # inference size; smaller = faster, less accurate.
+    # axtual size is 640*480 in a 640*640 square, other area is wasted
+
 CAP_W, CAP_H = 640, 480   # capture resolution; small = faster pipeline
 
 
-def load_model(path=MODEL_PATH):
-    """Load the YOLO model once and reuse it for every frame."""
+def load_model(path=None):
+    """Load the YOLO model once and reuse it for every frame.
+
+    Prefers the NCNN export (2-3x faster on the Pi CPU) when present,
+    otherwise falls back to the .pt model.
+    """
+    if path is None:
+        path = NCNN_PATH if os.path.isdir(NCNN_PATH) else PT_PATH
+    print(f"Using model: {path}")
     return YOLO(path)
 
 
@@ -82,7 +90,6 @@ def main():
     p.add_argument("--imgsz", type=int, default=IMGSZ, help="inference size")
     args = p.parse_args()
 
-    print(f"Loading {MODEL_PATH} ...")
     model = load_model()
     get_camera(width=CAP_W, height=CAP_H)   # start camera at low res for speed
     if args.save:
