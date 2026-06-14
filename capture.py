@@ -1,7 +1,7 @@
 """Reusable Pi Camera capture API.
 
 The camera is started once on first use and kept open, so calling take_photo()
-in a loop is fast. Import this from your YOLO train/run scripts:
+in a loop is fast. Import this from YOLO train/run scripts:
 
     from capture import take_photo, close_camera
     try:
@@ -19,7 +19,7 @@ import io
 import threading
 import time
 
-from picamera2 import Picamera2
+from picamera2 import Picamera2 #type: ignore
 
 _cam = None                      # Camera object, initialised once
 _lock = threading.Lock()         # one capture at a time across threads
