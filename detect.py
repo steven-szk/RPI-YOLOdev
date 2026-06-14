@@ -38,7 +38,14 @@ def system_stats():
 PT_PATH = "custom_model_5.pt"
 NCNN_PATH = "custom_model_5_ncnn_model"
 
-CONF = 0.4          # min confidence to report
+# Per-class confidence thresholds. Pingpong is easy -> demand high confidence
+# (fewer false positives). The bearing is hard/flickery -> accept lower so its
+# weak detections survive. Classes not listed fall back to CONF.
+CONF_BY_CLASS = {
+    "pingpong": 0.60,
+    "bearing": 0.25,
+}
+CONF = min(CONF_BY_CLASS.values())   # run YOLO at the lowest, then filter per class
 IMGSZ = 640         # inference size; smaller = faster, less accurate
 FOV_DEG = 120.0     # lens horizontal field of view (capture res lives in capture.py)
 
@@ -89,6 +96,9 @@ def detect(model, frame, conf=CONF, imgsz=IMGSZ):
     dets = []
     for box in results.boxes:
         label = model.names[int(box.cls[0])] #box.cls[0] gives the id of the model.names
+        confidence = float(box.conf[0])
+        if confidence < CONF_BY_CLASS.get(label, conf): #drop if below this class's threshold
+            continue
         x1, y1, x2, y2 = (float(v) for v in box.xyxy[0])
         cx = (x1 + x2) / 2.0
         cy = (y1 + y2) / 2.0
@@ -107,7 +117,7 @@ def detect(model, frame, conf=CONF, imgsz=IMGSZ):
 
         dets.append({ #dets is a list of dics
             "type": label,
-            "confidence": float(box.conf[0]),
+            "confidence": confidence,
             "x": cx,
             "y": cy,
             "angle": angle,
