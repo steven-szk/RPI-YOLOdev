@@ -1,14 +1,8 @@
 """Run the trained YOLO model on Pi Camera frames, real-time on the robot.
 
-Tuned for speed on the Pi: low capture resolution + small inference size,
-and no per-frame disk writes in the loop.
-
-Continuous (the robot's main mode):
-    python detect.py                 # detect until Ctrl+C
-    python detect.py --save          # also save annotated frames (slower)
-
-Single shot (debug / aiming):
-    python detect.py --once          # one frame -> data/detection.jpg
+    python detect.py            # detect in a loop until Ctrl+C
+    python detect.py --once     # single shot
+    python detect.py --save     # also save annotated frames
 
 Reuse from robot logic:
     from detect import load_model, detect
@@ -47,16 +41,10 @@ def system_stats():
 PT_PATH = "custom_model_5.pt"
 NCNN_PATH = "custom_model_5_ncnn_model"
 
-CONF = 0.5            # min confidence to report
-IMGSZ = 640
-    # inference size; smaller = faster, less accurate.
-    # axtual size is 640*480 in a 640*640 square, other area is wasted
-
-# CAMERA RESOLUTION
-CAP_W, CAP_H = 1920, 1080
-
-# LENS FOV
-FOV_DEG = 120.0
+CONF = 0.5          # min confidence to report
+IMGSZ = 640         # inference size; smaller = faster, less accurate
+CAP_W, CAP_H = 1920, 1080   # capture resolution
+FOV_DEG = 120.0     # lens horizontal field of view
 
 # Real-world diameter (cm) of each class, used for the rough distance
 # estimate. Fill in with YOUR model's class names exactly. Any class not
@@ -141,7 +129,7 @@ def main():
 
     def run_once():
         frame = take_photo()
-        dets, results = detect(model, frame, conf=args.conf, imgsz=args.imgsz)
+        dets, results = detect(model, frame)   # uses CONF / IMGSZ defaults
         for d in dets:
             dist = f"{d['distance']:.1f}cm" if d["distance"] is not None else "edge"
             print(f"  {d['type']:<12} {d['confidence']:.2f}  "
