@@ -1,0 +1,103 @@
+"""Run the trained YOLO model on Pi Camera frames, real-time on the robot.
+
+Tuned for speed on the Pi: low capture resolution + small inference size,
+and no per-frame disk writes in the loop.
+
+Continuous (the robot's main mode):
+    python detect.py                 # detect until Ctrl+C
+    python detect.py --save          # also save annotated frames (slower)
+
+Single shot (debug / aiming):
+    python detect.py --once          # one frame -> data/detection.jpg
+
+Reuse from robot logic:
+    from detect import load_model, detect
+    from capture import take_photo
+    model = load_model()
+    dets, _ = detect(model, take_photo())
+    for label, conf, (x1, y1, x2, y2) in dets:
+        cx = (x1 + x2) // 2          # object center -> steering
+"""
+
+import argparse
+import os
+import time
+
+from ultralytics import YOLO
+
+from capture import get_camera, take_photo, close_camera
+
+MODEL_PATH = "custom_model_5.pt"
+CONF = 0.5            # min confidence to report
+IMGSZ = 320          # inference size; smaller = faster, less accurate
+CAP_W, CAP_H = 640, 480   # capture resolution; small = faster pipeline
+
+
+def load_model(path=MODEL_PATH):
+    """Load the YOLO model once and reuse it for every frame."""
+    return YOLO(path)
+
+
+def detect(model, frame, conf=CONF, imgsz=IMGSZ):
+    """Run the model on one BGR frame.
+
+    Returns (detections, results) where detections is a list of
+    (label, confidence, (x1, y1, x2, y2)) tuples.
+    """
+    results = model(frame, conf=conf, imgsz=imgsz, verbose=False)[0]
+    out = []
+    for box in results.boxes:
+        cls = int(box.cls[0])
+        label = model.names[cls]
+        confidence = float(box.conf[0])
+        x1, y1, x2, y2 = (int(v) for v in box.xyxy[0])
+        out.append((label, confidence, (x1, y1, x2, y2)))
+    return out, results
+
+
+def main():
+    p = argparse.ArgumentParser(description="Run YOLO on Pi Camera frames.")
+    p.add_argument("--once", action="store_true", help="single shot instead of loop")
+    p.add_argument("--save", action="store_true", help="save annotated frames")
+    p.add_argument("--conf", type=float, default=CONF, help="confidence threshold")
+    p.add_argument("--imgsz", type=int, default=IMGSZ, help="inference size")
+    args = p.parse_args()
+
+    print(f"Loading {MODEL_PATH} ...")
+    model = load_model()
+    get_camera(width=CAP_W, height=CAP_H)   # start camera at low res for speed
+    if args.save:
+        os.makedirs("data", exist_ok=True)
+
+    def run_once():
+        frame = take_photo()
+        dets, results = detect(model, frame, conf=args.conf, imgsz=args.imgsz)
+        for label, conf, (x1, y1, x2, y2) in dets:
+            print(f"  {label:<15} {conf:.2f}  ({x1},{y1})-({x2},{y2})")
+        if not dets:
+            print("  (nothing detected)")
+        if args.save:
+            results.save(filename="data/detection.jpg")
+        return dets
+
+    if args.once:
+        run_once()
+        if args.save:
+            print("saved data/detection.jpg")
+        close_camera()
+        return
+
+    print("Detecting... Ctrl+C to stop.")
+    try:
+        while True:
+            t0 = time.time()
+            run_once()
+            print(f"  [{1 / (time.time() - t0):.1f} FPS]")
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    finally:
+        close_camera()
+
+
+if __name__ == "__main__":
+    main()

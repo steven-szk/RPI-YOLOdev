@@ -25,7 +25,6 @@ INFO_PAGE = b"""<!DOCTYPE html>
 <html><head><title>Pi Camera</title></head>
 <body style="text-align:center;background:#1e1e1e;color:#fff;font-family:sans-serif;">
   <h1>Pi Camera</h1>
-  <p><a href="/photo.jpg" style="color:#6cf;" download>Download a fresh snapshot</a></p>
   <h2>Live preview</h2>
   <img src="/stream.mjpg" style="max-width:90%;border:2px solid #555;border-radius:8px;">
 </body></html>
@@ -36,10 +35,6 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/":
             self._send(200, "text/html", INFO_PAGE)
-
-        elif self.path.startswith("/photo.jpg"):
-            # One fresh still -> JPEG. Browser/curl saves it; PC runs nothing.
-            self._send(200, "image/jpeg", capture_jpeg())
 
         elif self.path.startswith("/stream.mjpg"):
             self.send_response(200)
@@ -72,7 +67,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    get_camera()                             # warm up before serving
+    get_camera(640,480)                             # warm up before serving
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"Serving on http://<pi-ip>:{PORT}/  (photo: /photo.jpg)")
     try:
