@@ -41,7 +41,7 @@ def system_stats():
 PT_PATH = "custom_model_5.pt"
 NCNN_PATH = "custom_model_5_ncnn_model"
 
-CONF = 0.5          # min confidence to report
+CONF = 0.4          # min confidence to report
 IMGSZ = 640         # inference size; smaller = faster, less accurate
 CAP_W, CAP_H = 1920, 1080   # capture resolution
 FOV_DEG = 120.0     # lens horizontal field of view
