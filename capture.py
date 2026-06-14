@@ -40,9 +40,10 @@ def get_camera(width=WIDTH, height=HEIGHT, exposure_us=EXPOSURE_US, gain=GAIN):
     global _cam
     if _cam is None:
         cam = Picamera2()
-        # BGR888 -> capture_array() returns BGR directly (what YOLO/cv2 want)
+        # picamera2 quirk: "RGB888" actually gives a BGR-ordered array, which
+        # is what YOLO/cv2 expect.   ("BGR888" would give RGB and swap R<->B )
         cam.configure(cam.create_preview_configuration(
-            main={"size": (width, height), "format": "BGR888"}))
+            main={"size": (width, height), "format": "RGB888"}))
         cam.start()
         if exposure_us is not None:
             # Fix the shutter manually so it can't drift slow and blur.
