@@ -40,7 +40,7 @@ def annotated_jpeg():
         dist = f"{d['distance']:.0f}cm" if d["distance"] is not None else "edge"
         cv2.putText(frame, f"{dist} {d['angle']:+.0f}deg", (x + 8, y),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-    ok, buf = cv2.imencode(".jpg", frame)
+    ok, buf = cv2.imencode(".jpg", frame) #converts a BGR numpy array into jpeg
     return buf.tobytes()
 
 
