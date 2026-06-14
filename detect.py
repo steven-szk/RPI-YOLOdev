@@ -42,8 +42,8 @@ NCNN_PATH = "custom_model_5_ncnn_model"
 # (fewer false positives). The bearing is hard/flickery -> accept lower so its
 # weak detections survive. Classes not listed fall back to CONF.
 CONF_BY_CLASS = {
-    "pingpong": 0.60,
-    "bearing": 0.25,
+    "ping pong ball": 0.60,
+    "steel ball": 0.25,
 }
 CONF = min(CONF_BY_CLASS.values())   # run YOLO at the lowest, then filter per class
 IMGSZ = 640         # inference size; smaller = faster, less accurate
@@ -53,8 +53,8 @@ FOV_DEG = 120.0     # lens horizontal field of view (capture res lives in captur
 # estimate. Fill in with YOUR model's class names exactly. Any class not
 # listed here gets distance=None.
 DIAMETERS_CM = {
-    "pingpong": 4.0,
-    "bearing": 2.0,
+    "ping pong ball": 4.0,
+    "steel ball": 2.0,
 }
 
 
