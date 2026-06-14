@@ -23,8 +23,9 @@ from picamera2 import Picamera2 #type: ignore
 
 # Camera config (edit here, since the camera is set up at import time).
 WIDTH, HEIGHT = 1920, 1080       # capture resolution
-EXPOSURE_US = 9000               # fast shutter to freeze motion; None = auto, in microseconds
-GAIN = 6.0                       # raise to compensate for the short exposure
+EXPOSURE_US = 10000              # shutter speed in microsections, None = auto
+'''VERY IMPORTANT, in UK, 50Hz mains, so use multiples of 10ms'''
+GAIN = 6.5                       # exposure conpensation
 
 _cam = None                      # Camera object, initialised once
 _lock = threading.Lock()         # one capture at a time across threads
