@@ -26,17 +26,19 @@ WIDTH, HEIGHT = 1920, 1080       # capture resolution
 EXPOSURE_US = 20000              # shutter speed in microsections, None = auto
 '''VERY IMPORTANT, in UK, 50Hz mains, so use multiples of 10ms'''
 GAIN = 6.5                       # exposure conpensation
+COLOUR_GAINS = (1.8, 1.8)        # (red, blue) white-balance gains; None = auto AWB
 
 _cam = None                      # Camera object, initialised once
 _lock = threading.Lock()         # one capture at a time across threads
 
 
-def get_camera(width=WIDTH, height=HEIGHT, exposure_us=EXPOSURE_US, gain=GAIN):
+def get_camera(width=WIDTH, height=HEIGHT, exposure_us=EXPOSURE_US, gain=GAIN,
+               colour_gains=COLOUR_GAINS):
     """Return the shared Pi Camera, starting it on first call.
 
     Defaults to a fast shutter to freeze motion while the robot moves.
     Shorter exposure = less blur but darker, so gain is raised to compensate.
-    Pass exposure_us=None to use auto-exposure instead.
+    Pass exposure_us=None to use auto-exposure, colour_gains=None for auto AWB.
     """
     global _cam
     if _cam is None:
@@ -46,12 +48,19 @@ def get_camera(width=WIDTH, height=HEIGHT, exposure_us=EXPOSURE_US, gain=GAIN):
         cam.configure(cam.create_preview_configuration(
             main={"size": (width, height), "format": "RGB888"}))
         cam.start()
+        controls = {}
         if exposure_us is not None:
             # Fix the shutter manually so it can't drift slow and blur.
-            cam.set_controls({"AeEnable": False,
-                              "ExposureTime": exposure_us,
-                              "AnalogueGain": gain})
-        time.sleep(1)            # let settings/white-balance settle (first start)
+            controls.update({"AeEnable": False,
+                             "ExposureTime": exposure_us,
+                             "AnalogueGain": gain})
+        if colour_gains is not None:
+            # Lock white balance so colours don't drift frame to frame.
+            controls.update({"AwbEnable": False,
+                             "ColourGains": colour_gains})
+        if controls:
+            cam.set_controls(controls)
+        time.sleep(1)            # let settings settle (first start)
         _cam = cam
     return _cam
 
