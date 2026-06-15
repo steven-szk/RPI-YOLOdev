@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import cv2  # type: ignore
 
 from capture import take_photo, close_camera   # importing capture starts the camera
-from detect import load_model, detect
+from detect import load_model, detect, system_stats
 
 PORT = 1234
 model = load_model()
@@ -42,6 +42,14 @@ def annotated_jpeg():
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         cv2.putText(frame, label, (x1, y1 - 6),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    # System stats in the top-right corner.
+    stats = system_stats()
+    (tw, th), _ = cv2.getTextSize(stats, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+    x = frame.shape[1] - tw - 10              # right-align with a 10px margin
+    cv2.putText(frame, stats, (x, th + 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+
     ok, buf = cv2.imencode(".jpg", frame) #converts a BGR numpy array into jpeg
     return buf.tobytes()
 
