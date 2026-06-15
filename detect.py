@@ -40,7 +40,7 @@ NCNN_PATH = "custom_model_5_ncnn_model"
 
 # different confidence interval
 CONF_BY_CLASS = {
-    "ping pong ball": 0.60,
+    "ping pong ball": 0.50,
     "steel ball": 0.25,
 }
 CONF = min(CONF_BY_CLASS.values())   # run YOLO at the lowest, then filter per class
