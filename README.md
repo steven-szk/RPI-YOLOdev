@@ -15,3 +15,5 @@ deactivate
 # IP server:
 http://192.168.0.40:1234/
 
+# create ncnn
+yolo export model=custom_model_5.pt format=ncnn imgsz=640
