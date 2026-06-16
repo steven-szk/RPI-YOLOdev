@@ -45,7 +45,7 @@ CONF_BY_CLASS = {
 }
 CONF = min(CONF_BY_CLASS.values())   # run YOLO at the lowest, then filter per class
 IMGSZ = 640         # inference size; smaller = faster, less accurate
-FOV_DEG = 60.0     # lens horizontal field of view (capture res lives in capture.py)
+FOV_DEG = 65.0     # lens horizontal field of view (capture res lives in capture.py)
 
 # Real-world diameter (cm) of each class, used for the rough distance estimate
 DIAMETERS_CM = {
