@@ -29,7 +29,7 @@ GAIN = 6.5                       # exposure conpensation
 # Fixed white-balance gains (red, blue). With AWB off these lock the colour
 COLOUR_GAINS = (1.4, 1.4)  
 
-CAMERA_PORTS = (0)            # CSI ports to open (camera_num values)
+CAMERA_PORTS = [0]          # CSI ports to open (camera_num values)
 
 _cams = {}                       # {port: Picamera2}, each initialised once
 # one capture at a time per camera (the two cameras can capture in parallel)
