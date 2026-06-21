@@ -58,7 +58,7 @@ def detect_tags(frame):
 
     for d in dets:
         print("id:", d["id"], d["depth_cm"], d["bearing_deg"])
-    print("")
+    if dets is not None: print("")
     return dets
 
 
