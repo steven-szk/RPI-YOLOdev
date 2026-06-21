@@ -55,7 +55,7 @@ def detect_tags(frame):
             "lateral_cm": lateral_m * 100.0,
             "bearing_deg": math.degrees(math.atan2(lateral_m, depth_m)),
         })
-    print(dets)
+    print(dets["id"], dets["depths_cm"], dets["bearing_deg"])
     return dets
 
 
