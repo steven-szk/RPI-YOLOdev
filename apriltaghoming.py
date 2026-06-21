@@ -57,7 +57,8 @@ def detect_tags(frame):
         })
 
     for d in dets:
-        print("id:", d["id"], d["depth_cm"], d["bearing_deg"], '\n')
+        print("id:", d["id"], d["depth_cm"], d["bearing_deg"])
+    print("")
     return dets
 
 
