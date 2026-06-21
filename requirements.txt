@@ -6,3 +6,5 @@ psutil             # CPU / RAM stats in detect.py
 
 # If using a venv, create it so it can see the system picamera2:
 #   python3 -m venv --system-site-packages .venv
+
+pupil-apriltags
