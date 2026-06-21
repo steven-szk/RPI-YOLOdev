@@ -11,7 +11,11 @@ Run on the Raspberry Pi:
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from capture import capture_jpeg, close_camera   # importing capture starts the camera
+import cv2 #type: ignore
+
+from capture import take_photo, close_camera   # importing capture starts the camera
+from apriltaghoming import draw_tags
+
 
 PORT = 1234
 
@@ -23,6 +27,14 @@ INFO_PAGE = b"""<!DOCTYPE html>
   <img src="/stream.mjpg" style="max-width:90%;border:2px solid #555;border-radius:8px;">
 </body></html>
 """
+
+def _frame_jpeg(cam):
+    """JPEG bytes for one frame of camera `cam`. The rear camera gets the
+    detected AprilTags drawn on first; the front camera is served as-is.
+    """
+    frame = draw_tags(take_photo(cam))     # detect + annotate in place
+    ok, buf = cv2.imencode(".jpg", frame)
+    return buf.tobytes() if ok else b""
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -37,7 +49,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             try:
                 while True:
-                    jpeg = capture_jpeg()
+                    jpeg = _frame_jpeg(0)
                     self.wfile.write(b"--frame\r\n")
                     self.wfile.write(b"Content-Type: image/jpeg\r\n")
                     self.wfile.write(f"Content-Length: {len(jpeg)}\r\n\r\n".encode())
