@@ -5,13 +5,12 @@ import cv2  # type: ignore
 from pupil_apriltags import Detector  # type: ignore
 
 # importing capture starts both cameras (idempotent: motion.py already did this)
-from capture import take_photo, WIDTH, HEIGHT
+from capture import take_photo, WIDTH, HEIGHT, FOV_DEG
 
 TAG_FAMILY = "tag36h11"
 TAG_SIZE_M = 0.100           # all arena tags are 100 mm
 
 #cam param
-FOV_DEG = 60.0
 FOCAL_PX = (WIDTH / 2.0) / math.tan(math.radians(FOV_DEG / 2.0))
 CAMERA_PARAMS = (FOCAL_PX, FOCAL_PX, WIDTH / 2.0, HEIGHT / 2.0) # pupil_apriltags wants (fx, fy, cx, cy)
 
@@ -56,9 +55,11 @@ def detect_tags(frame):
             "bearing_deg": math.degrees(math.atan2(lateral_m, depth_m)),
         })
 
+    #print detections
     for d in dets:
         print("id:", d["id"], d["depth_cm"], d["bearing_deg"])
     if dets != []: print("")
+    
     return dets
 
 
@@ -89,3 +90,4 @@ def draw_tags(frame, dets=None, teamtags=()):
         cv2.putText(frame, label, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
                     1.2, colour, 3, cv2.LINE_AA)
     return frame
+

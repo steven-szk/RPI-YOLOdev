@@ -28,6 +28,7 @@ EXPOSURE_US = 20000              # shutter speed in microsections, None = auto
 GAIN = 6.5                       # exposure conpensation
 # Fixed white-balance gains (red, blue). With AWB off these lock the colour
 COLOUR_GAINS = (1.4, 1.4)  
+FOV_DEG = 65 #Used in other calls.
 
 CAMERA_PORTS = [0]          # CSI ports to open (camera_num values)
 

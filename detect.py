@@ -18,7 +18,7 @@ import time
 import psutil
 from ultralytics import YOLO #type: ignore
 
-from capture import take_photo, close_camera   # importing capture starts the camera
+from capture import take_photo, close_camera, FOV_DEG   # importing capture starts the camera
 
 _TEMP_FILE = "/sys/class/thermal/thermal_zone0/temp"
 
@@ -45,7 +45,6 @@ CONF_BY_CLASS = {
 }
 CONF = min(CONF_BY_CLASS.values())   # run YOLO at the lowest, then filter per class
 IMGSZ = 640         # inference size; smaller = faster, less accurate
-FOV_DEG = 65.0     # lens horizontal field of view (capture res lives in capture.py)
 
 # Real-world diameter (cm) of each class, used for the rough distance estimate
 DIAMETERS_CM = {
