@@ -1,6 +1,8 @@
 # RPI-YOLOdev
 Development YOLO for Unibots proj
 
+ssh steven@192.168.0.40
+
 # New venv with picamera2 system packages
 python3 -m venv --system-site-packages .venv
 
