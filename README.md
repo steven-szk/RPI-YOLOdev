@@ -29,3 +29,4 @@ sudo apt install -y python3-picamera2 python3-libcamera
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 yolo export model=custom_model_5.pt format=ncnn imgsz=640
+

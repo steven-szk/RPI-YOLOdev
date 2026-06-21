@@ -16,6 +16,7 @@ CAMERA_PARAMS = (FOCAL_PX, FOCAL_PX, WIDTH / 2.0, HEIGHT / 2.0) # pupil_apriltag
 
 _detector = Detector(families=TAG_FAMILY)
 
+# detects all tags in frame
 def detect_tags(frame):
     """Detect tag36h11 tags in a BGR rear-camera frame, with pose.
 
@@ -62,7 +63,7 @@ def detect_tags(frame):
     
     return dets
 
-
+# called in server only to draw tags
 def draw_tags(frame, dets=None, teamtags=()):
     """Draw detected tag outlines, ids and pose onto a BGR frame, in place.
 
@@ -91,3 +92,63 @@ def draw_tags(frame, dets=None, teamtags=()):
                     1.2, colour, 3, cv2.LINE_AA)
     return frame
 
+# plan the next move with a cmd rturn
+def plan(dets, teamtags):
+    """Decide the next action based on tag detections.
+    
+    Returns a command dict:
+        action    "home" : Found any tag, Go to Home
+                  "approach" : 
+                  "search"
+                  
+        bearing   steer toward this angle
+        depth_cm  estimated depth of the target (or None)
+    """
+    team_dets = [d for d in dets if d["id"] in teamtags]
+    if not team_dets:
+        return {
+            "action": "search",
+            "bearing": 0.0,
+            "depth_cm": None,
+        }
+
+    # Calculate target position (midpoint of both if 2, or the single tag if 1)
+    if len(team_dets) == 2:
+        d1, d2 = team_dets[0], team_dets[1]
+        depth_cm = (d1["depth_cm"] + d2["depth_cm"]) / 2.0
+        lateral_cm = (d1["lateral_cm"] + d2["lateral_cm"]) / 2.0
+        bearing = math.degrees(math.atan2(lateral_cm, depth_cm))
+        ids = [d1["id"], d2["id"]]
+        reason_prefix = f"TEAMTAGS {ids} (midpoint)"
+    else:
+        d = team_dets[0]
+        depth_cm = d["depth_cm"]
+        lateral_cm = d["lateral_cm"]
+        bearing = d["bearing_deg"]
+        ids = [d["id"]]
+        reason_prefix = f"TEAMTAG {ids}"
+
+    # Centred and close -> commit to final seat
+    if depth_cm <= FINAL_SEAT_CM and abs(bearing) <= CENTER_DEADBAND_DEG:
+        return {
+            "action": "seat",
+            "bearing": bearing,
+            "depth_cm": depth_cm,
+            "reason": f"{reason_prefix} close ({depth_cm:.1f}cm) & centred ({bearing:+.1f}deg) -> seating"
+        }
+
+    # Not centred or not close enough yet
+    if abs(bearing) < FACING_DEG:
+        return {
+            "action": "home",
+            "bearing": bearing,
+            "depth_cm": depth_cm,
+            "reason": f"{reason_prefix} depth {depth_cm:.1f}cm, bearing {bearing:+.1f}deg, reversing"
+        }
+    else:
+        return {
+            "action": "align",
+            "bearing": bearing,
+            "depth_cm": depth_cm,
+            "reason": f"{reason_prefix} bearing {bearing:+.1f}deg, turning to align"
+        }
