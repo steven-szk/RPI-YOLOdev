@@ -144,6 +144,13 @@ ALIGN_FULL_DEG   = 8.0    # |bearing| <= this -> full forward speed
 TURN_ONLY_DEG    = 35.0   # |bearing| >= this -> turn in place (no forward)
 BLIND_SEAT_SEC   = 0.8    # after the tags vanish, push straight this long, then brake
 
+# ---- clearwalls pre-phase (rotate-scan, run once before homing) ---------
+WALL_CLEARANCE_CM   = 70.0   # require at least this distance from every wall
+CLEAR_MARGIN_CM     = 15.0   # overshoot the clearance by this when driving clear
+CLEAR_SCAN_STEP_DEG = 45.0   # rotate-scan increment (< FOV so no wall is missed)
+CLEAR_DRIVE_RPM     = 60.0   # forward speed when driving to open space
+CLEAR_MAX_ITERS     = 4      # scan/move rounds before giving up (corner safety)
+
 # Map camera-frame commands to robot motion. If the homing camera faces the
 # REAR of the robot, set these to -1 (commanding motion "toward the tags" then
 # drives/turns the robot the other way). Forward-facing camera: +1.
@@ -318,6 +325,73 @@ def execute(robot, cmd):
                        turn_rpm=cmd["turn_rpm"] * TURN_SIGN)
 
 
+def _tag_range(d):
+    """Straight-line distance (cm) from the camera to a tag."""
+    return math.hypot(d["lateral_cm"], d["depth_cm"])
+
+
+def _scan_nearest_wall(robot, step_deg=CLEAR_SCAN_STEP_DEG):
+    """Rotate a full turn in place, sampling tags, to find the nearest wall in
+    ANY direction. Returns (range_cm, direction_deg) of the closest wall, with
+    direction relative to the heading at scan start (+ = right); range is inf if
+    nothing is seen. Steps are < FOV so consecutive views overlap and no wall is
+    missed. Net rotation is ~360 deg, so the robot ends back on its start heading.
+    """
+    steps = max(1, round(360.0 / step_deg))
+    heading = 0.0
+    nearest_r, nearest_dir = float("inf"), 0.0
+    for _ in range(steps):
+        for d in detect_tags(take_photo()):
+            r = _tag_range(d)
+            if r < nearest_r:
+                nearest_r = r
+                nearest_dir = heading + d["bearing_deg"]   # absolute dir to that wall
+        robot.turn_angle(step_deg * TURN_SIGN)             # precise, blocking
+        heading += step_deg
+    return nearest_r, nearest_dir
+
+
+def clearwalls(robot, clearance_cm=WALL_CLEARANCE_CM, max_iters=CLEAR_MAX_ITERS):
+    """Get clear of EVERY arena wall (home or not) before homing, by rotate-scan.
+
+    Each round: spin 360 deg sampling tags (every wall carries ids 0-23) to find
+    the nearest wall in any direction; if it is closer than `clearance_cm`, turn
+    to face directly away from it - the most open heading - and drive forward
+    into the open, then scan again. Driving forward (camera leading) into open
+    space is safer than a camera-blind reverse, and drive_distance's
+    stop_condition aborts the drive if a wall looms within clearance ahead.
+    Iterating handles corners (clear one wall, re-scan, clear the next).
+
+    Run ONCE before home()'s planning loop, so it can never interfere with
+    search / funnel / creep / commit (and never the blind commit into the home
+    wall). Assumes a forward-facing camera; if the homing camera is rear-mounted
+    the scan's heading/bearing mixing would need the camera offset applied.
+    """
+    print(f"clearwalls")
+
+    def _wall_ahead():
+        # abort the open-space drive if any wall comes within clearance in front
+        return any(_tag_range(d) < clearance_cm for d in detect_tags(take_photo()))
+
+    try:
+        for _ in range(max_iters):
+            nearest_r, nearest_dir = _scan_nearest_wall(robot)
+            if nearest_r >= clearance_cm:
+                print(f"clearwalls: clear (nearest wall {nearest_r:.0f}cm).")
+                return
+            open_dir = nearest_dir + 180.0                  # away from nearest wall
+            open_dir = (open_dir + 180.0) % 360.0 - 180.0   # shortest turn, [-180,180]
+            gap = (clearance_cm - nearest_r) + CLEAR_MARGIN_CM
+            print(f"clearwalls: nearest wall {nearest_r:.0f}cm @ {nearest_dir:+.0f}deg "
+                  f"-> turn {open_dir:+.0f}deg, drive {gap:.0f}cm to open space")
+            robot.turn_angle(open_dir * TURN_SIGN)
+            robot.drive_distance(speed_rpm=CLEAR_DRIVE_RPM, distance_cm=gap * FWD_SIGN,
+                                 accel=2, stop_condition=_wall_ahead)
+        print("clearwalls: gave up after max iters (corner?). Proceeding to homing.")
+    finally:
+        robot.set_velocity(0.0,0.0)
+
+
 def home(robot, hometags, on_frame=None):
     """Drive the robot into the dock between `hometags`. Blocks until seated.
 
@@ -331,6 +405,9 @@ def home(robot, hometags, on_frame=None):
     because we entered square and centred. `on_frame(cmd)` is an optional hook
     for logging/preview.
     """
+    # One-shot pre-phase: get clear of every wall (home or not) before planning.
+    clearwalls(robot)
+
     committed = False
     blind_start = None
     try:
