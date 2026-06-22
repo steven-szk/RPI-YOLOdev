@@ -95,36 +95,39 @@ def draw_tags(frame, dets=None, teamtags=()):
 # ======================================================================
 # Homing planner
 # ----------------------------------------------------------------------
-# The two HOMETAGS sit on the home wall a known distance apart. Seen from
-# the camera each gives depth_cm (along the optical axis) and lateral_cm
-# (+right), i.e. a top-down position in the camera frame !!!!origin at camera!!!!:
-#
-#       x = lateral (+right)        y = depth (+forward)
-#
-# Two tags => full 2-D pose: the dock centre T (their midpoint) AND the
-# wall normal, so we know not just *where* the dock is but whether we are
-# *square* to it. That matters because the 65 deg FOV loses both tags as we
-# close in - up close we are blind. So homing splits at the commit point:
-#
-#   FUNNEL (vision) : while both tags are in view, steer toward a standoff
-#                     point on the wall normal, in front of the dock, squaring
-#                     up as we go.
-#   COMMIT (blind)  : the instant a tag is about to leave the frame (or we
-#                     reach the standoff), face the dock and drive straight in.
-#                     When the tags finally leave the frame we keep that
-#                     straight velocity for a moment longer and brake - no
-#                     feedback is needed because we entered square and centred.
-#
-# This is a CONTINUOUS controller, not discrete moves: plan() is called every
-# frame and returns a *velocity* (forward_rpm, turn_rpm) for the non-blocking
-# UnibotDrive.set_velocity(). The robot keeps moving while we perceive, and the
-# velocity is re-adjusted every frame.
-#
-# Graceful degradation: 2 tags -> 1 tag (creep, hold heading) -> 0 (search).
-# ======================================================================
+'''
+The two HOMETAGS sit on the home wall a known distance apart. Seen from
+the camera each gives depth_cm (along the optical axis) and lateral_cm
+(+right), 
+
+ORIGIN AT CAMERA:
+      x = lateral (+right)        y = depth (+forward)
+
+Two tags => full 2-D pose of: 
+    dock centre T
+    wall normal
+    Standoff point P
+    ->  beta: if we are pointing towards target
+        alpha(skew): if we are perpendicular to wall
+    
+
+  FUNNEL (vision) : while both tags are in view, steer toward a standoff
+                    point on the wall normal, in front of the dock, squaring
+                    up as we go.
+  COMMIT (blind)  : the instant a tag is about to leave the frame (or we
+                    reach the standoff), face the dock and drive straight in.
+                    When the tags finally leave the frame we keep that
+                    straight velocity for a moment longer and brake - no
+                    feedback is needed because we entered square and centred.
+
+CONTINUOUS controller: plan() called every frame returns a cmd
+robot.set_velocity() is called in excecute() which is called in motion.py
+
+Graceful degradation: 2 tags -> 1 tag (creep, hold heading) -> 0 (search).
+'''
 
 # ---- homing geometry / commit (tune to your robot) ---------------------
-STANDOFF_CM      = 30.0   # aim point: distance in front of the dock, on the normal
+STANDOFF_CM      = 50.0   # aim point: distance in front of the dock, on the normal
 WAYPOINT_TOL_CM  = 8.0    # within this of the standoff point = "arrived", commit
 EDGE_MARGIN_PX   = 140    # a tag centre this near the frame edge is about to exit
 COMMIT_RANGE_CM  = 20.0   # range to dock at/under which we commit regardless
@@ -166,12 +169,13 @@ def _cmd(action, forward_rpm, turn_rpm, **extra):
 
 def _turn_rpm(bearing_err):
     """Turn rate (+right) proportional to bearing error, clamped."""
-    return max(-MAX_TURN_RPM, min(MAX_TURN_RPM, KP_TURN_RPM * bearing_err))
+    return max(-MAX_TURN_RPM, min(MAX_TURN_RPM, KP_TURN_RPM * bearing_err)) #do this to account for + and - angle
 
 
 def _fwd_rpm(bearing_err, cruise):
-    """Forward rpm: full when pointed at the target, ramped to 0 as the heading
-    error grows, so a large error turns (nearly) in place before driving on."""
+    """Forward rpm: bearing to move is small -> HIGH forward rpm
+                    bearing to move is large -> LOW  forward rpm
+    """
     e = abs(bearing_err)
     if e >= TURN_ONLY_DEG:
         return 0.0
@@ -190,22 +194,24 @@ def _select_home(dets, hometags):
 def _pose_from_pair(a, b):
     """Top-down geometry from two home tags (camera frame, x=right, y=fwd).
 
-    Returns the dock centre T and range/bearing to it, the standoff aim point
-    P on the wall normal in front of the dock (range/bearing to P), the wall
-    skew (0 = square to the wall) and the tags' min/max centre-x in pixels
+    Returns:
+        dock centre T and range/bearing to it
+        standoff aim point P on the wall normal (range/bearing to P)
+        wall skew (alpha)
+        tags' min/max centre-x in pixels
     (for the frame-edge commit test).
     """
     ax, ay = a["lateral_cm"], a["depth_cm"]
     bx, by = b["lateral_cm"], b["depth_cm"]
 
     tx, ty = (ax + bx) / 2.0, (ay + by) / 2.0           # dock centre
-    rng = math.hypot(tx, ty)
-    bearing = math.degrees(math.atan2(tx, ty))
+    rng = math.hypot(tx, ty) #distance to T
+    bearing = math.degrees(math.atan2(tx, ty)) #also called beta
 
     # Wall vector and its two perpendiculars; pick the normal that points from
     # the dock back toward the robot (the origin), i.e. n . (robot - T) > 0.
     wx, wy = bx - ax, by - ay
-    n = (-wy, wx)
+    n = (-wy, wx) #normal vector
     if n[0] * (-tx) + n[1] * (-ty) < 0:
         n = (wy, -wx)
     nmag = math.hypot(*n) or 1.0
